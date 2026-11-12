@@ -34,6 +34,7 @@ import (
 	core_utils "sigs.k8s.io/cluster-autoscaler/pkg/simulator"
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/clustersnapshot"
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/framework"
+	podutils "sigs.k8s.io/cluster-autoscaler/pkg/utils/pod"
 )
 
 // BinpackingNodeEstimator estimates the number of needed nodes to handle the given amount of pods.
@@ -481,8 +482,13 @@ func determineBestPEGToFastpath(podsEquivalenceGroups []PodEquivalenceGroup, nod
 				}
 			}
 		}
-		if len(peg.Exemplar().Spec.Containers) > 0 && peg.Exemplar().Spec.Containers[0].Resources.Requests != nil {
-			resourcesRequests := peg.Exemplar().Spec.Containers[0].Resources.Requests
+		var resourcesRequests apiv1.ResourceList
+		if _, hinted := peg.Exemplar().Annotations[podutils.HintsAppliedAnnotationKey]; hinted {
+			resourcesRequests = podutils.PodRequests(peg.Exemplar())
+		} else if len(peg.Exemplar().Spec.Containers) > 0 {
+			resourcesRequests = peg.Exemplar().Spec.Containers[0].Resources.Requests
+		}
+		if resourcesRequests != nil {
 			if resourcesRequests.Cpu() != nil {
 				numNodesByCpu = int(math.Ceil(float64(len(peg.Pods)) * resourcesRequests.Cpu().AsApproximateFloat64() / nodeTemplate.Node().Status.Capacity.Cpu().AsApproximateFloat64()))
 			}

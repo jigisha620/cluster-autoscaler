@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/scheduling"
 	"sigs.k8s.io/cluster-autoscaler/pkg/utils/drain"
 	kube_util "sigs.k8s.io/cluster-autoscaler/pkg/utils/kubernetes"
+	pod_util "sigs.k8s.io/cluster-autoscaler/pkg/utils/pod"
 	"sigs.k8s.io/cluster-autoscaler/pkg/utils/taints"
 	"sigs.k8s.io/cluster-autoscaler/pkg/utils/tpu"
 
@@ -243,6 +244,9 @@ func (r *RemovalSimulator) findPlaceFor(ctx context.Context, removedNode string,
 	}
 
 	pods = tpu.ClearTPURequests(pods)
+	if r.deleteOptions.PodResourceHints {
+		pods = pod_util.HintedPods(pods)
+	}
 
 	// Unschedule the pods from the Node in the snapshot first, so that they can be scheduled elsewhere by TrySchedulePods().
 	for _, pod := range pods {

@@ -381,6 +381,7 @@ func TestAutoscalingFlagsAllPossible(t *testing.T) {
 				"--capacity-buffer-controller-enabled=true",
 				"--capacity-buffer-pod-injection-enabled=true",
 				"--capacity-buffer-pod-dry-run-enabled=false",
+				"--pod-resource-hints=true",
 				"--node-removal-latency-tracking-enabled=true",
 				"--max-node-skip-eval-time-tracker-enabled=true",
 				"--capacity-quotas-enabled=true",
@@ -503,6 +504,7 @@ func TestAutoscalingFlagsAllPossible(t *testing.T) {
 				assert.True(t, opts.CapacitybufferControllerEnabled)
 				assert.True(t, opts.CapacitybufferPodInjectionEnabled)
 				assert.False(t, opts.CapacityBufferPodDryRunEnabled)
+				assert.True(t, opts.PodResourceHintsEnabled)
 				assert.True(t, opts.NodeRemovalLatencyTrackingEnabled)
 				assert.True(t, opts.MaxNodeSkipEvalTimeTrackerEnabled)
 				assert.True(t, opts.CapacityQuotasEnabled)

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/clustersnapshot/store"
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/clustersnapshot/testsnapshot"
 	"sigs.k8s.io/cluster-autoscaler/pkg/simulator/framework"
+	podutils "sigs.k8s.io/cluster-autoscaler/pkg/utils/pod"
 	. "sigs.k8s.io/cluster-autoscaler/pkg/utils/test"
 	"sigs.k8s.io/cluster-autoscaler/pkg/utils/units"
 )
@@ -534,6 +535,41 @@ func TestDetermineBestPodEquivalenceGroupToFastpath(t *testing.T) {
 			nodeInfo := framework.NewTestNodeInfo(makeNode(100, 100, 10, "oldnode", "zone-jupiter"))
 			result := determineBestPEGToFastpath(tc.podsEquivalenceGroups, nodeInfo)
 			assert.Equal(t, tc.expectResult, result)
+		})
+	}
+}
+
+func TestDetermineBestPEGToFastpathUsesHintedPod(t *testing.T) {
+	sidecarPod := BuildTestPod("hinted", 10, 5)
+	sidecarPod.Spec.Containers[0].Name = "app"
+	sidecarPod.Spec.Containers = append(sidecarPod.Spec.Containers, apiv1.Container{Name: "side"})
+	sidecarPod.Status.ResourceHints = []apiv1.PodResourceHint{{
+		Manager: "autoscaling.k8s.io/vpa-updater",
+		Replacement: &apiv1.ResourceHintValues{Containers: []apiv1.ContainerResourceHint{{
+			Name:     "side",
+			Requests: apiv1.ResourceList{apiv1.ResourceCPU: *resource.NewMilliQuantity(80, resource.DecimalSI)},
+		}}},
+	}}
+	hinted, ok := podutils.HintedPod(sidecarPod)
+	assert.True(t, ok)
+
+	for _, tc := range []struct {
+		name string
+		pod  *apiv1.Pod
+		want int
+	}{
+		// container 0 only: 5 pods * 10m on 100m = 1 node, score 0; the 60m group wins with score 1.
+		{name: "unhinted pod reads container 0", pod: sidecarPod, want: 1},
+		// whole pod 90m: 5 nodes, score 4.
+		{name: "hinted pod reads full pod requests", pod: hinted, want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			nodeInfo := framework.NewTestNodeInfo(makeNode(100, 100, 10, "oldnode", "zone-jupiter"))
+			pegs := []PodEquivalenceGroup{
+				makePodEquivalenceGroup(tc.pod, 5),
+				makePodEquivalenceGroup(BuildTestPod("other", 60, 60), 2),
+			}
+			assert.Equal(t, tc.want, determineBestPEGToFastpath(pegs, nodeInfo))
 		})
 	}
 }

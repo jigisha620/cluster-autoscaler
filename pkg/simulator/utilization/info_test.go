@@ -395,3 +395,22 @@ func getGpuConfigFromNode(node *apiv1.Node, dra bool) *cloudprovider.GpuConfig {
 	}
 	return nil
 }
+
+// KEP pod resource hints C3: pods that stay are sized as today, so a replacement hint does not change
+// node utilization.
+func TestCalculateIgnoresResourceHints(t *testing.T) {
+	now := time.Now()
+	node := BuildTestNode("node1", 1000, 10000000)
+	SetNodeReadyState(node, true, time.Time{})
+	pod := BuildTestPod("hinted", 200, 1000000)
+	pod.Status.ResourceHints = []apiv1.PodResourceHint{{
+		Manager: "autoscaling.k8s.io/vpa-updater",
+		Replacement: &apiv1.ResourceHintValues{Containers: []apiv1.ContainerResourceHint{{
+			Name:     pod.Spec.Containers[0].Name,
+			Requests: apiv1.ResourceList{apiv1.ResourceCPU: *resource.NewMilliQuantity(900, resource.DecimalSI)},
+		}}},
+	}}
+	utilInfo, err := Calculate(context.Background(), framework.NewTestNodeInfo(node, pod), false, false, false, nil, now)
+	assert.NoError(t, err)
+	assert.InEpsilon(t, 0.2, utilInfo.CpuUtil, 0.01)
+}

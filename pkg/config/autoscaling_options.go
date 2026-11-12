@@ -377,6 +377,8 @@ type AutoscalingOptions struct {
 	CapacitybufferControllerEnabled bool
 	// CapacitybufferPodInjectionEnabled tells if CA should injects fake pods for capacity buffers that are ready for provisioning
 	CapacitybufferPodInjectionEnabled bool
+	// PodResourceHintsEnabled tells if CA should size pods from Pod status.resourceHints (KEP prototype).
+	PodResourceHintsEnabled bool
 	// CapacityBufferPodDryRunEnabled tells if CA should use server dry run to build managed pod templates for the buffers
 	CapacityBufferPodDryRunEnabled bool
 	// CapacityBufferReadyReplicas tells if CA should reconcile readyReplicas status field of capacity buffers.
